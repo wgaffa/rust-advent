@@ -8,20 +8,16 @@ enum Instr {
 }
 
 impl FromStr for Instr {
-    type Err = String;
+    type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (instr_type, amount) = s
-            .split_once(' ')
-            .ok_or_else(|| String::from("Cannot parse move"))?;
-        let amount: usize = amount
-            .parse()
-            .map_err(|_| String::from("Cannot parse amount as usize"))?;
+        let (instr_type, amount) = s.split_once(' ').ok_or("Cannot parse move")?;
+        let amount: usize = amount.parse().map_err(|_| "Cannot parse amount as usize")?;
         let instr = match instr_type {
             "up" => Instr::Up(amount),
             "down" => Instr::Down(amount),
             "forward" => Instr::Forward(amount),
-            _ => return Err(String::from("Invalid move")),
+            _ => return Err("Invalid move"),
         };
 
         Ok(instr)
@@ -34,11 +30,17 @@ struct Pos {
     depth: usize,
 }
 
+trait Submarine {
+    fn apply(&mut self, instr: Instr);
+}
+
 impl Pos {
     fn mul(&self) -> usize {
         self.horiz * self.depth
     }
+}
 
+impl Submarine for Pos {
     fn apply(&mut self, instr: Instr) {
         match instr {
             Instr::Up(v) => self.depth -= v,
@@ -48,13 +50,17 @@ impl Pos {
     }
 }
 
-impl FromIterator<Instr> for Pos {
+struct PosWrapper<T: Submarine> {
+    pos: T,
+}
+
+impl<S: Submarine + Default> FromIterator<Instr> for PosWrapper<S> {
     fn from_iter<T: IntoIterator<Item = Instr>>(iter: T) -> Self {
-        let mut pos = Pos::default();
+        let mut pos = S::default();
         for instr in iter {
             pos.apply(instr);
         }
-        pos
+        PosWrapper { pos }
     }
 }
 
@@ -69,7 +75,9 @@ impl PosWithAim {
     fn mul(&self) -> usize {
         self.horiz * self.depth
     }
+}
 
+impl Submarine for PosWithAim {
     fn apply(&mut self, instr: Instr) {
         match instr {
             Instr::Up(v) => self.aim -= v,
@@ -82,24 +90,14 @@ impl PosWithAim {
     }
 }
 
-impl FromIterator<Instr> for PosWithAim {
-    fn from_iter<T: IntoIterator<Item = Instr>>(iter: T) -> Self {
-        let mut pos = PosWithAim::default();
-        for instr in iter {
-            pos.apply(instr);
-        }
-        pos
-    }
-}
-
 pub fn part1(input: &str) -> usize {
-    let pos: Pos = input.lines().map(|l| l.parse::<Instr>().unwrap()).collect();
-    pos.mul()
+    let pos: PosWrapper<Pos> = input.lines().map(|l| l.parse::<Instr>().unwrap()).collect();
+    pos.pos.mul()
 }
 
 pub fn part2(input: &str) -> usize {
-    let pos: PosWithAim = input.lines().map(|l| l.parse::<Instr>().unwrap()).collect();
-    pos.mul()
+    let pos: PosWrapper<PosWithAim> = input.lines().map(|l| l.parse::<Instr>().unwrap()).collect();
+    pos.pos.mul()
 }
 
 #[cfg(test)]
