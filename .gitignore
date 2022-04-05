@@ -17,3 +17,4 @@ Cargo.lock
 
 /rpi-pico/rp2040-minimal/target
 /rpi-pico/rp2040-full/target
+*.lprof
